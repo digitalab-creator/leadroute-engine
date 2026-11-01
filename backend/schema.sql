@@ -80,3 +80,47 @@ CREATE TABLE IF NOT EXISTS feed_status (
     source TEXT PRIMARY KEY,
     status TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS draft_feedback (
+    id TEXT PRIMARY KEY,
+    person_id TEXT NOT NULL REFERENCES persons(id),
+    draft_fingerprint TEXT NOT NULL,
+    draft_text TEXT NOT NULL,
+    rating TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+    created_at TEXT NOT NULL,
+    inbound_id TEXT,
+    client_context_json TEXT NOT NULL DEFAULT '{}',
+    comment TEXT NOT NULL DEFAULT ''
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_feedback_fingerprint
+    ON draft_feedback(person_id, draft_fingerprint);
+
+CREATE TABLE IF NOT EXISTS writer_learning_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_week_key TEXT NOT NULL DEFAULT '',
+    addendum TEXT NOT NULL DEFAULT '',
+    summary_json TEXT NOT NULL DEFAULT '{}',
+    analyzed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS visibility_feedback (
+    id TEXT PRIMARY KEY,
+    prompt_id TEXT NOT NULL,
+    brief_fingerprint TEXT NOT NULL,
+    brief_snapshot_json TEXT NOT NULL,
+    rating TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+    created_at TEXT NOT NULL,
+    comment TEXT NOT NULL DEFAULT ''
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_visibility_feedback_fingerprint
+    ON visibility_feedback(prompt_id, brief_fingerprint);
+
+CREATE TABLE IF NOT EXISTS visibility_learning_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_week_key TEXT NOT NULL DEFAULT '',
+    addendum TEXT NOT NULL DEFAULT '',
+    summary_json TEXT NOT NULL DEFAULT '{}',
+    analyzed_at TEXT
+);

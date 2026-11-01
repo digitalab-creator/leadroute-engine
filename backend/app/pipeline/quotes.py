@@ -25,8 +25,8 @@ def extraction_is_grounded(message: str, extraction: Extraction) -> bool:
 
     quoted = "\n".join(extraction.quotes)
     if extraction.intent is not Intent.OTHER:
-        surfaces = INTENT_SURFACES[extraction.intent]
-        if not any(phrase_in(quoted, phrase) for phrase in surfaces):
+        intent_surfaces = INTENT_SURFACES[extraction.intent]
+        if not any(phrase_in(quoted, phrase) for phrase in intent_surfaces):
             return False
 
     if extraction.stated_problem is not None:
@@ -36,8 +36,8 @@ def extraction_is_grounded(message: str, extraction: Extraction) -> bool:
             return False
         if extraction.stated_problem_quote not in message:
             return False
-        surfaces = PAIN_SURFACES[extraction.stated_problem]
-        if not any(phrase_in(extraction.stated_problem_quote, phrase) for phrase in surfaces):
+        pain_surfaces = PAIN_SURFACES[extraction.stated_problem]
+        if not any(phrase_in(extraction.stated_problem_quote, phrase) for phrase in pain_surfaces):
             return False
 
     if extraction.stated_role is not None:
@@ -47,10 +47,10 @@ def extraction_is_grounded(message: str, extraction: Extraction) -> bool:
             return False
         if extraction.stated_role_quote not in message:
             return False
-        surfaces = ROLE_SURFACES.get(extraction.stated_role)
-        if not surfaces:
+        role_surfaces = ROLE_SURFACES.get(extraction.stated_role)
+        if not role_surfaces:
             return False
-        if not any(phrase_in(extraction.stated_role_quote, phrase) for phrase in surfaces):
+        if not any(phrase_in(extraction.stated_role_quote, phrase) for phrase in role_surfaces):
             return False
 
     company_fields = (
@@ -63,8 +63,8 @@ def extraction_is_grounded(message: str, extraction: Extraction) -> bool:
         if not quote or quote not in extraction.quotes or quote not in message:
             return False
         if extraction.stated_industry is not None:
-            surfaces = INDUSTRY_SURFACES[extraction.stated_industry]
-            if not any(phrase_in(quote, phrase) for phrase in surfaces):
+            industry_surfaces = INDUSTRY_SURFACES[extraction.stated_industry]
+            if not any(phrase_in(quote, phrase) for phrase in industry_surfaces):
                 return False
         if extraction.stated_employees is not None and str(extraction.stated_employees) not in quote:
             return False

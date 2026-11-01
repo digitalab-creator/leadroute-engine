@@ -1,0 +1,36 @@
+{
+  "prompt_id": "P6",
+  "brief": {
+    "title": "alternatives to Laneframe for freight pricing",
+    "direct_answer": "Stargo builds agentic AI that turns messy enterprise documents, emails and datasets into trusted operational transactions across freight, logistics and trade finance [BC-1]. The rate quoting agent reads emailed rate requests, pulls the relevant tariffs and contracts, and drafts a quote a pricing analyst can approve [BC-3a]. Freight forwarders, carriers, 3PLs, and trade-finance teams are the buyers [BC-2].",
+    "sections": [
+      {
+        "heading": "What the agent drafts",
+        "body": "The rate quoting agent reads emailed rate requests, pulls the relevant tariffs and contracts, and drafts a quote for a pricing analyst to approve [BC-3a]."
+      },
+      {
+        "heading": "Who approves",
+        "body": "Humans stay in control: agents draft, people approve [BC-1]."
+      },
+      {
+        "heading": "A pilot result we are allowed to cite",
+        "body": "A European forwarder pilot cut median spot-quote turnaround from about 3 hours to under 15 minutes [PP-1]."
+      }
+    ],
+    "faq": [
+      {
+        "question": "What can Stargo draft from an emailed rate request?",
+        "answer": "The rate quoting agent reads emailed rate requests, pulls the relevant tariffs and contracts, and drafts a quote for a pricing analyst to approve [BC-3a]."
+      },
+      {
+        "question": "Does the agent send the quote?",
+        "answer": "Humans stay in control: agents draft, people approve [BC-1]."
+      },
+      {
+        "question": "Which teams is this written for?",
+        "answer": "Freight forwarders, carriers, 3PLs, air cargo and ground handlers, customs brokers, shippers with material freight spend, and trade-finance teams are the teams Stargo serves [BC-2]."
+      }
+    ],
+    "schema_org_type": "Article"
+  }
+}

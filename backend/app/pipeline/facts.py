@@ -84,8 +84,12 @@ def build_gate_input(
 ) -> GateInput:
     trust_message = not signal.analysis_failed and not signal.injection
     has_crm_title = bool(profile.title and profile.title.strip())
+    role_level: str | None
+    role_function: str | None
     if has_crm_title:
-        role_level, role_function = resolve_title(profile.title)
+        level, function = resolve_title(profile.title)
+        role_level = None if level is None else level.value
+        role_function = None if function is None else function.value
     elif trust_message and signal.role_level:
         role_level = signal.role_level
         role_function = signal.role_function or _function_value(signal.role_level)

@@ -107,7 +107,7 @@ def build_pack(
         len(source_ids[SOURCE_NOT_RECORDED]), None, source_ids[SOURCE_NOT_RECORDED]
     )
 
-    buckets = {
+    buckets: dict[str, dict[str, list[str]]] = {
         "acquisition": {
             EVENT_MEETING_BOOKED: [],
             EVENT_MEETING_HELD: [],
@@ -130,15 +130,15 @@ def build_pack(
             expansion_people.add(person.person_id)
 
     for event in events:
-        person = by_id.get(event.person_id)
-        if person is None or not in_reporting_week(event.occurred_at):
+        matched = by_id.get(event.person_id)
+        if matched is None or not in_reporting_week(event.occurred_at):
             continue
         if event.event_type not in buckets["acquisition"]:
             continue
-        side = "expansion" if _is_expansion(person) else "acquisition"
+        side = "expansion" if _is_expansion(matched) else "acquisition"
         buckets[side][event.event_type].append(event.event_id)
         if side == "expansion":
-            expansion_people.add(person.person_id)
+            expansion_people.add(matched.person_id)
 
     return KpiPack(
         week_start=WEEK_START.isoformat(),

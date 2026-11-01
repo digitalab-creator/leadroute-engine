@@ -64,3 +64,12 @@ def to_jerusalem(moment: datetime) -> datetime:
 def in_reporting_week(moment: datetime) -> bool:
     local = to_jerusalem(moment)
     return WEEK_START <= local <= WEEK_END
+
+
+def calendar_week_key(moment: datetime | None = None) -> str:
+    """ISO week in Asia/Jerusalem, for the draft-learning schedule."""
+    if moment is None:
+        moment = datetime.now(JERUSALEM)
+    local = to_jerusalem(moment)
+    year, week, _ = local.isocalendar()
+    return f"{year}-W{week:02d}"

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from app.constants import Intent, Pain
+from app.constants import Industry, Intent, Pain
 from app.logging_config import get_logger
 from app.pipeline.injection import find_instruction
 from app.pipeline.lexicon import (
@@ -94,15 +94,17 @@ def _best_phrase(text: str, phrases: tuple[str, ...]) -> str | None:
     return found
 
 
-def _company_sentence(message: str) -> tuple[str | None, str | None, int | None, str | None]:
+def _company_sentence(
+    message: str,
+) -> tuple[Industry | None, str | None, int | None, str | None]:
     """Industry, country, employees, and the one sentence that supports them."""
     sentences = re.split(r"(?<=[\.\!\?])\s+", message.strip()) or [message]
-    best: tuple[int, str, str | None, str | None, int | None] | None = None
+    best: tuple[int, str, Industry | None, str | None, int | None] | None = None
     for sentence in sentences:
-        industry: str | None = None
+        industry: Industry | None = None
         for pain_industry, surfaces in INDUSTRY_SURFACES.items():
             if _best_phrase(sentence, surfaces):
-                industry = pain_industry.value
+                industry = pain_industry
                 break
         country = country_in_text(sentence)
         employees_match = _EMPLOYEES.search(sentence)

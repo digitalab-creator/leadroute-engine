@@ -157,7 +157,10 @@ def company_rows(connection: sqlite3.Connection, domain: str) -> list[sqlite3.Ro
 
 
 def get_person(connection: sqlite3.Connection, person_id: str) -> sqlite3.Row | None:
-    return connection.execute("SELECT * FROM persons WHERE id = ?", (person_id,)).fetchone()
+    found: sqlite3.Row | None = connection.execute(
+        "SELECT * FROM persons WHERE id = ?", (person_id,)
+    ).fetchone()
+    return found
 
 
 def list_persons(connection: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -221,9 +224,10 @@ def list_inbounds(connection: sqlite3.Connection, person_id: str) -> list[sqlite
 
 
 def get_extraction(connection: sqlite3.Connection, inbound_id: str) -> sqlite3.Row | None:
-    return connection.execute(
+    found: sqlite3.Row | None = connection.execute(
         "SELECT * FROM extractions WHERE inbound_id = ?", (inbound_id,)
     ).fetchone()
+    return found
 
 
 def insert_sales_decision(
@@ -260,6 +264,23 @@ def list_sales(connection: sqlite3.Connection, person_id: str) -> list[sqlite3.R
             "SELECT * FROM sales_decisions WHERE person_id = ? ORDER BY decided_at, id",
             (person_id,),
         )
+    )
+
+
+def update_draft_text(
+    connection: sqlite3.Connection,
+    *,
+    person_id: str,
+    draft: str,
+    draft_state: str = "edited",
+) -> None:
+    connection.execute(
+        """
+        UPDATE decisions
+        SET draft = ?, draft_state = ?
+        WHERE person_id = ?
+        """,
+        (draft, draft_state, person_id),
     )
 
 
@@ -319,13 +340,21 @@ def save_qualification(
 
 
 def get_qualification(connection: sqlite3.Connection, person_id: str) -> sqlite3.Row | None:
-    return connection.execute(
+    found: sqlite3.Row | None = connection.execute(
         "SELECT * FROM decisions WHERE person_id = ?", (person_id,)
     ).fetchone()
+    return found
 
 
 def list_qualifications(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     return list(connection.execute("SELECT * FROM decisions"))
+
+
+def rearm_unavailable_drafts(connection: sqlite3.Connection) -> None:
+    """Let a failed draft try again. A bad model name had left these stuck."""
+    connection.execute(
+        "UPDATE decisions SET draft_state = 'template' WHERE draft_state = 'unavailable'"
+    )
 
 
 def insert_pipeline_event(
@@ -362,3 +391,236 @@ def save_feed(connection: sqlite3.Connection, source: str, status: str) -> None:
 def list_feeds(connection: sqlite3.Connection) -> dict[str, str]:
     rows = connection.execute("SELECT source, status FROM feed_status")
     return {str(row["source"]): str(row["status"]) for row in rows}
+
+
+def draft_fingerprint(person_id: str, draft_text: str) -> str:
+    import hashlib
+
+    digest = hashlib.sha256(f"{person_id}\n{draft_text}".encode("utf-8")).hexdigest()
+    return digest[:20]
+
+
+def upsert_draft_feedback(
+    connection: sqlite3.Connection,
+    *,
+    feedback_id: str,
+    person_id: str,
+    draft_text: str,
+    rating: str,
+    created_at: str,
+    inbound_id: str | None,
+    client_context_json: str,
+    comment: str = "",
+) -> None:
+    fingerprint = draft_fingerprint(person_id, draft_text)
+    connection.execute(
+        "DELETE FROM draft_feedback WHERE person_id = ? AND draft_fingerprint = ?",
+        (person_id, fingerprint),
+    )
+    connection.execute(
+        """
+        INSERT INTO draft_feedback (
+            id, person_id, draft_fingerprint, draft_text, rating,
+            created_at, inbound_id, client_context_json, comment
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            feedback_id,
+            person_id,
+            fingerprint,
+            draft_text,
+            rating,
+            created_at,
+            inbound_id,
+            client_context_json,
+            comment,
+        ),
+    )
+
+
+def get_draft_feedback(
+    connection: sqlite3.Connection, person_id: str, draft_text: str
+) -> tuple[str, str] | None:
+    fingerprint = draft_fingerprint(person_id, draft_text)
+    row = connection.execute(
+        """
+        SELECT rating, comment FROM draft_feedback
+        WHERE person_id = ? AND draft_fingerprint = ?
+        """,
+        (person_id, fingerprint),
+    ).fetchone()
+    if row is None:
+        return None
+    comment = row["comment"]
+    return str(row["rating"]), "" if comment is None else str(comment)
+
+
+def get_draft_feedback_rating(
+    connection: sqlite3.Connection, person_id: str, draft_text: str
+) -> str | None:
+    found = get_draft_feedback(connection, person_id, draft_text)
+    if found is None:
+        return None
+    return found[0]
+
+
+def list_draft_feedback(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            "SELECT * FROM draft_feedback ORDER BY created_at, id"
+        )
+    )
+
+
+def get_writer_learning_state(connection: sqlite3.Connection) -> sqlite3.Row | None:
+    found: sqlite3.Row | None = connection.execute(
+        "SELECT * FROM writer_learning_state WHERE id = 1"
+    ).fetchone()
+    return found
+
+
+def save_writer_learning_state(
+    connection: sqlite3.Connection,
+    *,
+    week_key: str,
+    addendum: str,
+    summary_json: str,
+    analyzed_at: str,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO writer_learning_state (id, last_week_key, addendum, summary_json, analyzed_at)
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            last_week_key = excluded.last_week_key,
+            addendum = excluded.addendum,
+            summary_json = excluded.summary_json,
+            analyzed_at = excluded.analyzed_at
+        """,
+        (week_key, addendum, summary_json, analyzed_at),
+    )
+
+
+def upsert_visibility_feedback(
+    connection: sqlite3.Connection,
+    *,
+    feedback_id: str,
+    prompt_id: str,
+    brief_fingerprint: str,
+    brief_snapshot_json: str,
+    rating: str,
+    created_at: str,
+    comment: str = "",
+) -> None:
+    connection.execute(
+        "DELETE FROM visibility_feedback WHERE prompt_id = ? AND brief_fingerprint = ?",
+        (prompt_id, brief_fingerprint),
+    )
+    connection.execute(
+        """
+        INSERT INTO visibility_feedback (
+            id, prompt_id, brief_fingerprint, brief_snapshot_json, rating, created_at, comment
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            feedback_id,
+            prompt_id,
+            brief_fingerprint,
+            brief_snapshot_json,
+            rating,
+            created_at,
+            comment,
+        ),
+    )
+
+
+def get_visibility_feedback(
+    connection: sqlite3.Connection, prompt_id: str, brief_fingerprint: str
+) -> tuple[str, str] | None:
+    row = connection.execute(
+        """
+        SELECT rating, comment FROM visibility_feedback
+        WHERE prompt_id = ? AND brief_fingerprint = ?
+        """,
+        (prompt_id, brief_fingerprint),
+    ).fetchone()
+    if row is None:
+        return None
+    comment = row["comment"]
+    return str(row["rating"]), "" if comment is None else str(comment)
+
+
+def get_visibility_feedback_rating(
+    connection: sqlite3.Connection, prompt_id: str, brief_fingerprint: str
+) -> str | None:
+    found = get_visibility_feedback(connection, prompt_id, brief_fingerprint)
+    if found is None:
+        return None
+    return found[0]
+
+
+def list_visibility_feedback(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            "SELECT * FROM visibility_feedback ORDER BY created_at, id"
+        )
+    )
+
+
+def get_visibility_learning_state(connection: sqlite3.Connection) -> sqlite3.Row | None:
+    found: sqlite3.Row | None = connection.execute(
+        "SELECT * FROM visibility_learning_state WHERE id = 1"
+    ).fetchone()
+    return found
+
+
+def save_visibility_learning_state(
+    connection: sqlite3.Connection,
+    *,
+    week_key: str,
+    addendum: str,
+    summary_json: str,
+    analyzed_at: str,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO visibility_learning_state (id, last_week_key, addendum, summary_json, analyzed_at)
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            last_week_key = excluded.last_week_key,
+            addendum = excluded.addendum,
+            summary_json = excluded.summary_json,
+            analyzed_at = excluded.analyzed_at
+        """,
+        (week_key, addendum, summary_json, analyzed_at),
+    )
+
+
+def list_lead_queue(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    """One row per person who sent an inbound. Highest score first, then latest time."""
+    return list(
+        connection.execute(
+            """
+            SELECT
+                p.id AS person_id,
+                p.display_name,
+                p.company_name,
+                p.company_domain,
+                d.status,
+                d.owner,
+                d.score,
+                d.band,
+                ib.channel,
+                ib.received_at
+            FROM persons p
+            JOIN decisions d ON d.person_id = p.id
+            JOIN inbounds ib ON ib.id = (
+                SELECT i.id FROM inbounds i
+                WHERE i.person_id = p.id
+                ORDER BY i.received_at DESC, i.id DESC
+                LIMIT 1
+            )
+            ORDER BY d.score DESC, ib.received_at DESC, p.id
+            """
+        )
+    )

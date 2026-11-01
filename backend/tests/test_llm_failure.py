@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.db import apply_schema, connect
 from app.ingest.records import CrmRow, InboundRecord
-from app.logging_config import configure_logging, get_logger
+from app.logging_config import configure_logging, get_logger, redact
 from app.pipeline.extract import extract_message, load_fixtures
 from app.pipeline.quotes import extraction_is_grounded
 from app.pipeline.schemas import Extraction
@@ -196,6 +196,14 @@ def test_writer_failure_keeps_the_code_status(tmp_path: Path) -> None:
     assert saved["draft"] is None
     assert saved["draft_state"] == "unavailable"
     connection.close()
+
+
+def test_formatter_redacts_a_prompt_value() -> None:
+    cleaned = redact("prompt=secret-prompt contact hello@example.com")
+    assert "secret-prompt" not in cleaned
+    assert "hello@example.com" not in cleaned
+    assert "[redacted]" in cleaned
+    assert "[redacted-email]" in cleaned
 
 
 def test_rules_path_does_not_guess_and_logs_stay_clean(tmp_path: Path) -> None:

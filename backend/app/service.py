@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.clock import JERUSALEM, in_reporting_week, parse_timestamp
-from app.constants import PIPELINE_EVENT_TYPES, AccountKind
+from app.constants import PIPELINE_EVENT_TYPES, AccountKind, configured_site_origin
 from app.ingest.files import read_crm, read_events
 from app.ingest.firmographics import agree_columns, fill_company_gaps
 from app.ingest.identity import company_domain_from_email, normalize_email, normalize_linkedin
@@ -22,10 +22,27 @@ from app.pipeline.facts import PersonProfile, build_gate_input
 from app.pipeline.gate import decide
 from app.pipeline.merge import merge_outcomes
 from app.pipeline.schemas import Extraction
-from app.pipeline.writer import writer_draft
+from app.brand_docs import read_brand_context
+from app.pipeline.client_context import build_client_context_json
+from app.labels import draft_matches_language
+from app.pipeline.draft_learning import writer_addendum
 from app import repo
+from app.pipeline.email_draft import compose_outbound_draft
+from app.pipeline.writer import writer_draft
+from app.pipeline.writer_brief import WriterInput
 
 logger = get_logger()
+
+_MAX_FEEDBACK_COMMENT = 2000
+
+
+def _feedback_comment(raw: str | None) -> str:
+    if raw is None:
+        return ""
+    text = raw.strip()
+    if len(text) > _MAX_FEEDBACK_COMMENT:
+        return text[:_MAX_FEEDBACK_COMMENT]
+    return text
 
 
 class InboundRejected(Exception):
@@ -144,10 +161,26 @@ def _profile(row: sqlite3.Row) -> PersonProfile:
     )
 
 
+def _reply_language(pairs: list[tuple[datetime, ExtractOutcome]]) -> str:
+    """Language of the quote the reply answers, else the latest message."""
+    language = "en"
+    quoted: str | None = None
+    for _received, outcome in pairs:
+        extraction = outcome.extraction
+        if extraction is None or not extraction.language:
+            continue
+        language = extraction.language
+        if extraction.stated_problem_quote:
+            quoted = extraction.language
+    return quoted or language
+
+
 def recompute_person(
     connection: sqlite3.Connection,
     person_id: str,
     client: CompletionClient | None,
+    *,
+    data_dir: Path | None = None,
 ) -> sqlite3.Row:
     """Read stored evidence and write one decision. Does not call the model again."""
     person = repo.get_person(connection, person_id)
@@ -182,12 +215,35 @@ def recompute_person(
         source=earliest_source or None,
     )
     decision = decide(facts)
-    draft, draft_state = writer_draft(
+    latest_body = ""
+    if inbounds:
+        latest_body = str(inbounds[-1]["body"])
+    brand_text = read_brand_context(data_dir) if data_dir is not None else ""
+    reply_language = _reply_language(pairs)
+    raw_draft, draft_state = writer_draft(
         client,
         allowed=decision.draft_allowed,
-        problem_quote=signal.problem_quote,
-        inbound_id=latest_inbound_id,
+        fields=WriterInput(
+            inbound_id=latest_inbound_id,
+            language=reply_language,
+            message_body=latest_body,
+            problem_quote=signal.problem_quote,
+            intent=signal.intent,
+            stated_problem=signal.problem,
+            client_context_json=build_client_context_json(connection, person_id),
+            brand_context_markdown=brand_text,
+            learned_addendum=writer_addendum(connection),
+        ),
     )
+    draft = raw_draft
+    if raw_draft and draft_state in {"writer", "template"}:
+        draft, _html = compose_outbound_draft(
+            raw_draft,
+            owner=decision.owner,
+            language=reply_language,
+            data_dir=data_dir,
+            site_origin=configured_site_origin(),
+        )
     repo.save_qualification(
         connection,
         person_id=person_id,
@@ -217,12 +273,198 @@ def recompute_person(
     return saved
 
 
+def _stored_pairs(
+    connection: sqlite3.Connection, person_id: str
+) -> list[tuple[datetime, ExtractOutcome]]:
+    pairs: list[tuple[datetime, ExtractOutcome]] = []
+    for inbound in repo.list_inbounds(connection, person_id):
+        pairs.append(
+            (
+                parse_timestamp(str(inbound["received_at"])),
+                _outcome_from_row(repo.get_extraction(connection, str(inbound["id"]))),
+            )
+        )
+    return pairs
+
+
+def repair_template_language(connection: sqlite3.Connection) -> None:
+    """Rewrite a local template that is not in the inbound language.
+
+    Runs only when no model client is configured. A configured client rewrites
+    the template when that lead is opened, and does not keep the old mix.
+    """
+    changed = False
+    for row in repo.list_qualifications(connection):
+        if str(row["draft_state"]) != "template":
+            continue
+        person_id = str(row["person_id"])
+        language = _reply_language(_stored_pairs(connection, person_id))
+        draft = "" if row["draft"] is None else str(row["draft"])
+        if draft_matches_language(draft, language):
+            continue
+        recompute_person(connection, person_id, None)
+        changed = True
+    if changed:
+        connection.commit()
+
+
+def upgrade_template_draft(
+    connection: sqlite3.Connection,
+    person_id: str,
+    client: CompletionClient | None,
+    *,
+    data_dir: Path | None = None,
+) -> None:
+    """Regenerate the unsent draft when Gemini is on so learning and context stay fresh."""
+    refresh_draft_on_view(connection, person_id, client, data_dir=data_dir)
+
+
+def refresh_draft_on_view(
+    connection: sqlite3.Connection,
+    person_id: str,
+    client: CompletionClient | None,
+    *,
+    data_dir: Path | None = None,
+) -> None:
+    if client is None:
+        return
+    qual = repo.get_qualification(connection, person_id)
+    if qual is None:
+        return
+    state = str(qual["draft_state"])
+    if state in {"edited", "not_applicable"}:
+        return
+    recompute_person(connection, person_id, client, data_dir=data_dir)
+    connection.commit()
+    logger.info("draft_refreshed_on_view person_id=%s prior_state=%s", person_id, state)
+
+
+def record_draft_feedback(
+    connection: sqlite3.Connection,
+    *,
+    person_id: str,
+    rating: str,
+    comment: str | None = None,
+) -> dict[str, str]:
+    """Store thumbs up or down on the current unsent draft."""
+    kind = rating.strip().casefold()
+    if kind not in {"up", "down"}:
+        raise InboundRejected(["rating must be up or down"])
+    qual = repo.get_qualification(connection, person_id)
+    if qual is None:
+        raise InboundRejected(["lead has no qualification"])
+    draft = qual["draft"]
+    if draft is None or not str(draft).strip():
+        raise InboundRejected(["no draft to rate"])
+    draft_text = str(draft)
+    inbounds = repo.list_inbounds(connection, person_id)
+    inbound_id = str(inbounds[-1]["id"]) if inbounds else None
+    stamp = datetime.now(JERUSALEM).isoformat(timespec="seconds")
+    repo.upsert_draft_feedback(
+        connection,
+        feedback_id=f"DF-{uuid.uuid4().hex[:12]}",
+        person_id=person_id,
+        draft_text=draft_text,
+        rating=kind,
+        created_at=stamp,
+        inbound_id=inbound_id,
+        client_context_json=build_client_context_json(connection, person_id),
+        comment=_feedback_comment(comment),
+    )
+    connection.commit()
+    return {"rating": kind, "recorded_at": stamp}
+
+
+def save_draft_edit(
+    connection: sqlite3.Connection,
+    *,
+    person_id: str,
+    draft_text: str,
+    data_dir: Path | None,
+) -> dict[str, object]:
+    from app.pipeline.email_draft import validate_compose_plain
+    from app.present import _lead_mail_bundle, _messages, _reply_language
+
+    text = draft_text.strip()
+    if not text:
+        raise InboundRejected(["draft is empty"])
+    try:
+        validate_compose_plain(text)
+    except ValueError as exc:
+        raise InboundRejected([str(exc)]) from exc
+    person = repo.get_person(connection, person_id)
+    qual = repo.get_qualification(connection, person_id)
+    if person is None or qual is None:
+        raise InboundRejected(["lead has no qualification"])
+    repo.update_draft_text(connection, person_id=person_id, draft=text)
+    connection.commit()
+    messages = _messages(connection, person_id)
+    language = _reply_language(messages)
+    owner = qual["owner"]
+    owner_text = None if owner is None else str(owner)
+    draft_html, compose = _lead_mail_bundle(
+        person=person,
+        draft_text=text,
+        owner_text=owner_text,
+        reply_language=language,
+        messages=messages,
+        data_dir=data_dir,
+    )
+    return {
+        "draft": text,
+        "draft_state": "edited",
+        "draft_html": draft_html,
+        "compose": compose,
+    }
+
+
+def record_visibility_feedback(
+    connection: sqlite3.Connection,
+    *,
+    prompt_id: str,
+    brief_fingerprint: str,
+    brief_snapshot: dict[str, object],
+    rating: str,
+    comment: str | None = None,
+) -> dict[str, str]:
+    kind = rating.strip().casefold()
+    if kind not in {"up", "down"}:
+        raise InboundRejected(["rating must be up or down"])
+    if not prompt_id.strip() or not brief_fingerprint.strip():
+        raise InboundRejected(["brief identity is missing"])
+    stamp = datetime.now(JERUSALEM).isoformat(timespec="seconds")
+    from app.pipeline.visibility_learning import brief_fingerprint as fp_fn
+
+    clean = {
+        key: value
+        for key, value in brief_snapshot.items()
+        if key not in {"brief_fingerprint", "feedback_rating"}
+    }
+    snapshot_json = json.dumps(clean, ensure_ascii=False, sort_keys=True)
+    expected = fp_fn(prompt_id, snapshot_json)
+    if brief_fingerprint != expected:
+        raise InboundRejected(["brief fingerprint does not match the snapshot"])
+    repo.upsert_visibility_feedback(
+        connection,
+        feedback_id=f"VF-{uuid.uuid4().hex[:12]}",
+        prompt_id=prompt_id,
+        brief_fingerprint=brief_fingerprint,
+        brief_snapshot_json=snapshot_json,
+        rating=kind,
+        created_at=stamp,
+        comment=_feedback_comment(comment),
+    )
+    connection.commit()
+    return {"rating": kind, "recorded_at": stamp}
+
+
 def ingest_inbound(
     connection: sqlite3.Connection,
     record: InboundRecord,
     client: CompletionClient | None = None,
     *,
     recompute_now: bool = True,
+    data_dir: Path | None = None,
 ) -> str:
     """Validate, match a person, store the message, and (usually) qualify them."""
     errors = validate_inbound(record)
@@ -265,7 +507,7 @@ def ingest_inbound(
         payload_json=payload,
     )
     if recompute_now:
-        recompute_person(connection, person_id, client)
+        recompute_person(connection, person_id, client, data_dir=data_dir)
     return person_id
 
 
@@ -302,6 +544,7 @@ def record_sales_decision(
     decision_id: str | None = None,
     replace: bool = False,
     client: CompletionClient | None = None,
+    data_dir: Path | None = None,
 ) -> sqlite3.Row:
     """Store a human accept or reject, then qualify that person again."""
     parse_timestamp(decided_at)
@@ -309,7 +552,11 @@ def record_sales_decision(
     if kind not in {"accepted", "rejected"}:
         raise InboundRejected(["decision must be accepted or rejected"])
     if replace:
+        # The click is the current decision. A no clears an earlier yes, and a yes
+        # clears an earlier no. Otherwise Reject cannot change a qualified lead.
         repo.delete_decisions_of_kind(connection, person_id, kind)
+        other = "rejected" if kind == "accepted" else "accepted"
+        repo.delete_decisions_of_kind(connection, person_id, other)
     repo.insert_sales_decision(
         connection,
         decision_id=decision_id or f"SD-{uuid.uuid4().hex[:12]}",
@@ -319,16 +566,19 @@ def record_sales_decision(
         decided_at=decided_at,
         note=note,
     )
-    saved = recompute_person(connection, person_id, client)
+    saved = recompute_person(connection, person_id, client, data_dir=data_dir)
     connection.commit()
     return saved
 
 
 def recompute_all(
-    connection: sqlite3.Connection, client: CompletionClient | None = None
+    connection: sqlite3.Connection,
+    client: CompletionClient | None = None,
+    *,
+    data_dir: Path | None = None,
 ) -> None:
     for person in repo.list_persons(connection):
-        recompute_person(connection, str(person["id"]), client)
+        recompute_person(connection, str(person["id"]), client, data_dir=data_dir)
 
 
 def load_seed(
@@ -381,20 +631,20 @@ def load_seed(
         if email is None:
             logger.warning("pipeline_skipped event_id=%s reason=missing_email", event.id)
             continue
-        person_id = repo.find_person_id_by_email(connection, email)
-        if person_id is None:
+        matched_person = repo.find_person_id_by_email(connection, email)
+        if matched_person is None:
             logger.warning("pipeline_skipped event_id=%s reason=no_person", event.id)
             continue
         repo.insert_pipeline_event(
             connection,
             event_id=event.id,
-            person_id=person_id,
+            person_id=matched_person,
             event_type=event.event_type,
             occurred_at=event.occurred_at,
         )
     for source, status in events.feeds.items():
         repo.save_feed(connection, source, status)
-    recompute_all(connection, client)
+    recompute_all(connection, client, data_dir=data_dir)
     connection.commit()
     logger.info(
         "seed_loaded persons=%s rejected=%s",
@@ -469,6 +719,7 @@ def paste_inbound(
     received_at: str | None = None,
     source: str | None = None,
     client: CompletionClient | None = None,
+    data_dir: Path | None = None,
 ) -> sqlite3.Row:
     inbound_id = f"PA-{uuid.uuid4().hex[:12]}"
     record = InboundRecord(
@@ -482,7 +733,9 @@ def paste_inbound(
         subject=None,
         body=text,
     )
-    person_id = ingest_inbound(connection, record, client, recompute_now=True)
+    person_id = ingest_inbound(
+        connection, record, client, recompute_now=True, data_dir=data_dir
+    )
     connection.commit()
     saved = repo.get_qualification(connection, person_id)
     if saved is None:

@@ -9,6 +9,9 @@ __pycache__/
 *.sqlite3
 logs/
 var/
+frontend/node_modules/
+frontend/dist/
+.cursor/
 *.xlsx
 Stargo_RevOps_Engineer_Take_Home.md
 Stargo_RevOps_Engineer_Take_Home.pdf

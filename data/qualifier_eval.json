@@ -1,0 +1,479 @@
+{
+  "version": 1,
+  "description": "Labelled cases for the QL gate (build_gate_input + decide). Each row cites ql_standard.md.",
+  "cases": [
+    {
+      "id": "E001",
+      "title": "All five conditions and acceptance → QL",
+      "standard": "§1",
+      "accepted": true,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "QL", "qualified": true, "owner": "Dana" }
+    },
+    {
+      "id": "E002",
+      "title": "Conditions 1–4 without acceptance → QL candidate",
+      "standard": "§1",
+      "accepted": false,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "QL candidate", "qualified": false, "owner": "Dana" }
+    },
+    {
+      "id": "E003",
+      "title": "Acceptance does not repair failed ICP",
+      "standard": "§1",
+      "accepted": true,
+      "source": "warm-network",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": null,
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "nurture", "qualified": false }
+    },
+    {
+      "id": "E004",
+      "title": "High score cannot override gate",
+      "standard": "§4",
+      "accepted": true,
+      "source": "warm-network",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": null,
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "nurture", "qualified": false }
+    },
+    {
+      "id": "E005",
+      "title": "Prompt injection → needs review",
+      "standard": "§5",
+      "accepted": false,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": true,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "gemini"
+      },
+      "expected": { "status": "needs review", "qualified": false, "owner": "Dana" }
+    },
+    {
+      "id": "E006",
+      "title": "Analysis failure → needs review even if accepted",
+      "standard": "§5",
+      "accepted": true,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": true,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "gemini"
+      },
+      "expected": { "status": "needs review", "qualified": false }
+    },
+    {
+      "id": "E007",
+      "title": "Unsubscribe → suppressed",
+      "standard": "§2",
+      "accepted": false,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "unsubscribe",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "suppressed", "qualified": false }
+    },
+    {
+      "id": "E008",
+      "title": "Existing customer → excluded expansion",
+      "standard": "§2",
+      "accepted": false,
+      "source": "event-email",
+      "profile": {
+        "title": "Station Manager",
+        "industry": "air_cargo",
+        "employees": 5000,
+        "country": "US",
+        "is_customer": true,
+        "customer_unreadable": false,
+        "crm_owner": "Sam",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "pricing",
+        "role_level": "manager",
+        "role_function": "operations",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "excluded", "qualified": false, "owner": "Sam" }
+    },
+    {
+      "id": "E009",
+      "title": "Investor → excluded to Founders",
+      "standard": "§2",
+      "accepted": false,
+      "source": null,
+      "profile": {
+        "title": "Partner",
+        "industry": null,
+        "employees": 25,
+        "country": "US",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": null,
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "investor",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "investor",
+        "role_level": "owner_founder",
+        "role_function": null,
+        "problem": null,
+        "problem_grounded": false,
+        "mode": "fixture"
+      },
+      "expected": { "status": "excluded", "qualified": false, "owner": "Founders" }
+    },
+    {
+      "id": "E010",
+      "title": "Auto-reply → disqualified no owner",
+      "standard": "§2",
+      "accepted": false,
+      "source": "event-email",
+      "profile": {
+        "title": "Head of Pricing",
+        "industry": "freight_forwarder",
+        "employees": 100,
+        "country": "NL",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "auto-reply",
+        "role_level": "head",
+        "role_function": "pricing",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "rules"
+      },
+      "expected": { "status": "disqualified", "qualified": false, "owner": null }
+    },
+    {
+      "id": "E011",
+      "title": "Competitor lead status → disqualified",
+      "standard": "§2",
+      "accepted": false,
+      "source": "new-connection",
+      "profile": {
+        "title": "Head of Partnerships",
+        "industry": null,
+        "employees": 60,
+        "country": "DE",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": null,
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "software_vendor",
+        "lead_status": "competitor"
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "head",
+        "role_function": "commercial",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "disqualified", "qualified": false, "owner": null }
+    },
+    {
+      "id": "E012",
+      "title": "Stated facts on blank profile Israel → QL Noa",
+      "standard": "§1 §5",
+      "accepted": true,
+      "accepted_at": "2026-10-07T15:00:00+03:00",
+      "first_inbound": "2026-10-06T16:00:00+03:00",
+      "source": "organic/referral",
+      "profile": {
+        "title": null,
+        "industry": null,
+        "employees": null,
+        "country": null,
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": null,
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "unknown",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "pricing",
+        "role_level": "owner_founder",
+        "role_function": null,
+        "problem": "document_extraction",
+        "problem_grounded": true,
+        "industry": "customs_broker",
+        "employees": 40,
+        "country": "IL",
+        "mode": "fixture"
+      },
+      "expected": { "status": "QL", "qualified": true, "owner": "Noa" }
+    },
+    {
+      "id": "E013",
+      "title": "CRM team-lead title blocks buyer → nurture not QL",
+      "standard": "§1",
+      "accepted": true,
+      "accepted_at": "2026-10-06T09:00:00+03:00",
+      "first_inbound": "2026-10-05T10:00:00+03:00",
+      "source": "event-email",
+      "profile": {
+        "title": "Customer Service Team Lead",
+        "industry": "carrier",
+        "employees": 2200,
+        "country": "BE",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Dana",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "owner_founder",
+        "role_function": null,
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "rules"
+      },
+      "expected": { "status": "nurture", "qualified": false, "owner": "Dana" }
+    },
+    {
+      "id": "E014",
+      "title": "Open deal before inbound → excluded pre-existing",
+      "standard": "§2",
+      "accepted": false,
+      "first_inbound": "2026-10-06T09:00:00+03:00",
+      "source": "paid",
+      "profile": {
+        "title": "Head of Trade Operations",
+        "industry": "trade_finance",
+        "employees": 300,
+        "country": "SG",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Mei",
+        "open_deal_created": "2026-08-19T00:00:00+03:00",
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "pilot",
+        "role_level": "head",
+        "role_function": "operations",
+        "problem": "trade_document_checking",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "excluded", "qualified": false, "owner": "Mei" }
+    },
+    {
+      "id": "E015",
+      "title": "19 employees fails ICP minimum",
+      "standard": "§1",
+      "accepted": true,
+      "source": "event-email",
+      "profile": {
+        "title": "Operations Director",
+        "industry": "trucking",
+        "employees": 19,
+        "country": "UK",
+        "is_customer": false,
+        "customer_unreadable": false,
+        "crm_owner": "Leo",
+        "open_deal_created": null,
+        "deal_unreadable": false,
+        "account_kind": "icp",
+        "lead_status": null
+      },
+      "signal": {
+        "analysis_failed": false,
+        "injection": false,
+        "intent": "demo",
+        "role_level": "director",
+        "role_function": "operations",
+        "problem": "rate_quoting",
+        "problem_grounded": true,
+        "mode": "fixture"
+      },
+      "expected": { "status": "nurture", "qualified": false, "owner": "Leo" }
+    }
+  ]
+}

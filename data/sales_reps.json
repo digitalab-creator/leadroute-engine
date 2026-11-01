@@ -1,0 +1,44 @@
+{
+  "Noa": {
+    "full_name": "Noa Cohen",
+    "title_en": "Account Executive · Israel",
+    "title_he": "Account Executive · ישראל",
+    "email": "noa@stargo.co",
+    "phone": "+972-3-555-0101"
+  },
+  "Dana": {
+    "full_name": "Dana Weiss",
+    "title_en": "Account Executive · EMEA",
+    "title_he": "Account Executive · EMEA",
+    "email": "dana@stargo.co",
+    "phone": "+44-20-7946-0102"
+  },
+  "Leo": {
+    "full_name": "Leo Martin",
+    "title_en": "Account Executive · Americas",
+    "title_he": "Account Executive · Americas",
+    "email": "leo@stargo.co",
+    "phone": "+1-415-555-0103"
+  },
+  "Mei": {
+    "full_name": "Mei Tan",
+    "title_en": "Account Executive · APAC",
+    "title_he": "Account Executive · APAC",
+    "email": "mei@stargo.co",
+    "phone": "+65-6555-0104"
+  },
+  "Sam": {
+    "full_name": "Sam Ortiz",
+    "title_en": "Account Executive · LATAM",
+    "title_he": "Account Executive · LATAM",
+    "email": "sam@stargo.co",
+    "phone": "+52-55-5555-0105"
+  },
+  "Founders": {
+    "full_name": "Stargo Founders Office",
+    "title_en": "Founders office",
+    "title_he": "משרד המייסדים",
+    "email": "hello@stargo.co",
+    "phone": "+972-3-555-0100"
+  }
+}

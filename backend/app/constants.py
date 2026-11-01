@@ -3,7 +3,12 @@
 One list per idea. Callers do not grow their own copies.
 """
 
+import os
 from enum import StrEnum
+
+# README, the Vite proxy, and logo links in drafts all use this port.
+LOCAL_API_PORT = 8000
+DEFAULT_SITE_ORIGIN = f"http://127.0.0.1:{LOCAL_API_PORT}"
 
 # Reporting week from ql_standard.md section 6. Sun 4 Oct through Thu 8 Oct 2026.
 WEEK_START_DATE = (2026, 10, 4)
@@ -28,6 +33,13 @@ TARGETS = {
 
 # A blank source is a bucket, not a feed that can be "not received".
 SOURCE_NOT_RECORDED = "source not recorded"
+
+
+def configured_site_origin() -> str:
+    """Logo links in an unsent draft. Blank env falls back to the local API."""
+    raw = os.environ.get("LEADROUTE_SITE_ORIGIN", DEFAULT_SITE_ORIGIN).strip()
+    return raw or DEFAULT_SITE_ORIGIN
+
 
 KNOWN_FEEDS = (
     "event-email",
