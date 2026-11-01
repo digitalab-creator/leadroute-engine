@@ -1,1 +1,1 @@
-"""Stargo RevOps engine. Code owns qualification. The model only proposes evidence."""
+"""LeadRoute — RevOps qualification engine. Code owns the decision; the model proposes evidence."""

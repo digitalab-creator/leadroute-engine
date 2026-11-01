@@ -19,9 +19,9 @@ logger = get_logger()
 _ALLOWED_ENV = {
     "GEMINI_API_KEY",
     "GEMINI_MODEL",
-    "STARGO_DB_PATH",
-    "STARGO_DATA_DIR",
-    "STARGO_LOG_DIR",
+    "LEADROUTE_DB_PATH",
+    "LEADROUTE_DATA_DIR",
+    "LEADROUTE_LOG_DIR",
 }
 
 
@@ -73,9 +73,9 @@ def create_app(
     root = repo_root()
     if load_env:
         load_local_env(root / ".env")
-    database = db_path or Path(os.environ.get("STARGO_DB_PATH", root / "var" / "revops.sqlite"))
-    pack = data_dir or Path(os.environ.get("STARGO_DATA_DIR", root / "data"))
-    logs = log_dir or Path(os.environ.get("STARGO_LOG_DIR", root / "logs"))
+    database = db_path or Path(os.environ.get("LEADROUTE_DB_PATH", root / "var" / "revops.sqlite"))
+    pack = data_dir or Path(os.environ.get("LEADROUTE_DATA_DIR", root / "data"))
+    logs = log_dir or Path(os.environ.get("LEADROUTE_LOG_DIR", root / "logs"))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
