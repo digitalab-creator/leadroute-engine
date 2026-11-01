@@ -89,7 +89,7 @@ def create_app(
         yield
         app.state.conn.close()
 
-    app = FastAPI(lifespan=lifespan)
+    app = FastAPI(title="LeadRoute", lifespan=lifespan)
 
     @app.exception_handler(InboundRejected)
     async def rejected(_request: object, exc: InboundRejected) -> JSONResponse:

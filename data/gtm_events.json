@@ -6,7 +6,7 @@
       "start": "2026-10-04",
       "end": "2026-10-08"
     },
-    "note": "All people, companies, domains and figures are synthetic and created for this exercise."
+    "note": "Synthetic demo dataset. Not derived from production systems."
   },
   "feed_status": {
     "event-email": "received",

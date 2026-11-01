@@ -1,6 +1,6 @@
 # Stargo Brand Context (Marketing Brain excerpt)
 
-Synthetic excerpt for this exercise (v2). Treat it as the only approved source of claims about Stargo.
+Demo marketing copy (v2). Treat it as the approved source of claims about the fictional Stargo brand in `data/`.
 
 ## BC-1 Positioning
 Stargo builds agentic AI that turns messy enterprise documents, emails and datasets into trusted operational transactions across freight, logistics and trade finance. Humans stay in control: agents draft, people approve.
@@ -14,7 +14,7 @@ Freight forwarders, carriers, 3PLs, air cargo and ground handlers, customs broke
 - **BC-3c Invoice and Contract Reconciliation.** Matches carrier invoices to contracted rates and flags discrepancies for review.
 - **BC-3d Trade Document Checking.** Validates trade documents for finance teams before funds move.
 
-## BC-4 Proof points (illustrative, approved for this exercise only)
+## BC-4 Proof points (illustrative, approved for demo and external storytelling)
 - **PP-1.** A European forwarder pilot cut median spot-quote turnaround from about 3 hours to under 15 minutes.
 - **PP-2.** Document extraction pilots reached 97% field-level accuracy on bills of lading after human review.
 - **PP-3.** An air cargo handler removed manual AWB re-keying at two stations.

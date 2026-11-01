@@ -1,6 +1,6 @@
 # Stargo Qualified Lead (QL) Standard and Reporting Rules
 
-Synthetic operating rules for this exercise (v2). They mirror how our RevOps programme works, simplified.
+Operating rules for the demo RevOps programme (v2). LeadRoute implements this document as code.
 
 ## 1. What counts as a Qualified Lead
 
