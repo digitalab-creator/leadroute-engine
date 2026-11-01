@@ -44,5 +44,32 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install, lint, build
-        run: npm ci && npm run lint && npm run build
+      - name: Unit tests, lint, build
+        run: npm ci && npm run test && npm run lint && npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend
+        run: python -m pip install -r backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build UI and run Playwright smoke
+        working-directory: frontend
+        env:
+          GEMINI_API_KEY: ""
+          LEADROUTE_DB_PATH: ${{ runner.temp }}/revops-e2e.sqlite
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:e2e

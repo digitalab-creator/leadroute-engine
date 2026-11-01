@@ -11,6 +11,9 @@ logs/
 var/
 frontend/node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
 .cursor/
 *.xlsx
 Stargo_RevOps_Engineer_Take_Home.md

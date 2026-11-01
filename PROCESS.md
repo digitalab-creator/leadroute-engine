@@ -85,6 +85,8 @@ Trimmed for length. Spelling and grammar in the quotes below are corrected; word
 
 - `py -3 -m pytest backend/tests -q` with **no** API key (fixtures / rules-only path).
 - `npm run build` in `frontend`.
+- `npm run test` in `frontend` (Vitest, mocked fetch).
+- `npm run build && npm run test:e2e` in `frontend` (Playwright smoke against uvicorn + built UI).
 - Manual: queue at ~390px width; Accept with `decided_at` inside vs outside **Sun 4 Oct – Thu 8 Oct 2026** (Asia/Jerusalem); only in-week accepts change that week’s QL count.
 - Paste a message that tries to override rules → **needs review**, not QL.
 - AI visibility → top brief fully tagged or **blocked**; gap list matches `ai_answers.json`.

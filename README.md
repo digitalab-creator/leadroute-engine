@@ -202,7 +202,9 @@ After qualification, each lead maps to a `PATCH /crm/v3/objects/contacts/{id}` w
 
 ## Tests
 
-No network. The model client is replaced in tests, and importing the app during pytest does not open the product database or read a key.
+No network in unit tests. The backend model client is replaced in pytest. The UI uses Vitest with mocked `fetch`, plus Playwright smoke tests that boot the API with an empty key and hit the built screens.
+
+**Backend**
 
 Windows:
 
@@ -210,9 +212,6 @@ Windows:
 .\.venv\Scripts\python.exe -m ruff check backend/app backend/tests
 .\.venv\Scripts\python.exe -m mypy -p app
 .\.venv\Scripts\python.exe -m pytest backend/tests -q
-cd frontend
-npm run lint
-npm run build
 ```
 
 macOS or Linux:
@@ -221,10 +220,45 @@ macOS or Linux:
 .venv/bin/python -m ruff check backend/app backend/tests
 .venv/bin/python -m mypy -p app
 .venv/bin/python -m pytest backend/tests -q
-cd frontend && npm run lint && npm run build
 ```
 
-A push or pull request runs those same checks in GitHub Actions (`.github/workflows/ci.yml`): ruff, mypy, pytest with an empty key, then the frontend lint and build.
+**Frontend unit and smoke (offline)**
+
+From `frontend/`:
+
+```powershell
+npm run test
+```
+
+Covers API response parsing (bad shapes throw `ApiError`), `BriefProse` cite tags, and the app shell nav.
+
+**Frontend e2e (Playwright)**
+
+Build the UI first, then run smoke tests. Playwright starts uvicorn on port **8765** (override with `E2E_PORT`) with a temp SQLite file and no Gemini key, so it does not clash with a dev server on 8000.
+
+Windows (repo root on `PATH` for `python`):
+
+```powershell
+cd frontend
+npm run build
+npm run test:e2e
+```
+
+macOS or Linux:
+
+```bash
+cd frontend && npm run build && npm run test:e2e
+```
+
+**Lint and production build**
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
+**CI** (`.github/workflows/ci.yml`): backend job (ruff, mypy, pytest), frontend job (Vitest, lint, build), e2e job (build + Playwright smoke on Ubuntu).
 
 ## Layout
 
